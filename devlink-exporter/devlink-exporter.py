@@ -127,6 +127,19 @@ class DevlinkCollector(object):
                 counter.add_metric(labels,
                                    trap_policer["stats"]["rx"]["dropped"])
 
+    def update_devlink_metric_stats(self, counter):
+        """Update counter with statistics from devlink metric."""
+        command = ['devlink', '-s', 'dev', 'metric', '-jp']
+        jsonout = self.devlink_jsonout_get(command)
+
+        for devhandle in jsonout["metric"]:
+            for metric in jsonout["metric"][devhandle]:
+                if metric["type"] != "counter":
+                    continue
+                labels = [devhandle, metric["metric"], metric["type"]]
+                counter.add_metric(labels,
+                                   metric["value"])
+
     def collect(self):
         """
         Collect the metrics.
@@ -153,6 +166,12 @@ class DevlinkCollector(object):
                                       labels=['device', 'policer', 'rate',
                                               'burst', 'dropped'])
         self.update_devlink_trap_policer_stats(counter)
+        yield counter
+
+        counter = CounterMetricFamily('node_net_devlink_metric',
+                                      'Devlink metric data',
+                                      labels=['device', 'metric', 'type'])
+        self.update_devlink_metric_stats(counter)
         yield counter
 
 if __name__ == '__main__':
